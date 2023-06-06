@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32616.157
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecDive1", "RecDive1\RecDive1.csproj", "{A8E0C4D3-6A33-4DC9-B46A-422CD0F82310}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metrics", "Metrics\Metrics.csproj", "{85E014E2-8BE3-4942-93D3-3C1DF727D90B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A8E0C4D3-6A33-4DC9-B46A-422CD0F82310}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8E0C4D3-6A33-4DC9-B46A-422CD0F82310}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8E0C4D3-6A33-4DC9-B46A-422CD0F82310}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8E0C4D3-6A33-4DC9-B46A-422CD0F82310}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85E014E2-8BE3-4942-93D3-3C1DF727D90B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85E014E2-8BE3-4942-93D3-3C1DF727D90B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85E014E2-8BE3-4942-93D3-3C1DF727D90B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85E014E2-8BE3-4942-93D3-3C1DF727D90B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {131D972D-2472-44F2-8F0E-FF19C38BC1E8}
+	EndGlobalSection
+EndGlobal

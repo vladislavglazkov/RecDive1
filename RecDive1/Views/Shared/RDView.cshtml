@@ -1,0 +1,100 @@
+﻿@{
+    Layout = null;
+    
+    }
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App 1</title>
+    <script>
+
+        async function sendCode() {
+            let obj = document.getElementById('code');
+            let code = obj.innerText;
+            globalCode = code;
+            let form = new FormData();
+            form.append("Code", code);
+            let res=await fetch("/Main/ValidateCode", {
+                method: "POST", body: form
+        
+            });
+            
+            if (res.ok) {
+                let ms = document.getElementById("method");
+                ms.innerHTML = ""
+                let text = await res.text();
+                let obj = JSON.parse(text);
+                mapping = obj;
+                ms.style.display = "block";
+                obj.forEach(h => {
+                    let el = document.createElement("option")
+                    el.innerText = h.Name;
+                    el.id = h.Id;
+                    el.value = h.Id;
+                    ms.appendChild(el);
+                });
+
+                argFit();
+                
+            }
+            
+        }
+        function argFit() {
+            document.getElementById("run").style.display = "block";
+            let argOut = document.getElementById('argOut');
+            argOut.style.display = "block";
+            let argIn = document.getElementById('argIn');
+            argIn.innerHTML = "";
+            let ms = document.getElementById("method");
+
+            let el = mapping.find(h => {
+                return h.Id == ms.value;
+            });
+
+            for (let i = 0; i < el.Params; i++) {
+                
+                let nel = document.createElement("input")
+                nel.name = el.Id;
+                argIn.appendChild(nel)
+            }
+
+        }
+        async function run() {
+            let argIn = document.getElementById('argIn');
+            let obj = new FormData();
+            obj.append("Code", globalCode);
+            obj.append("Id", document.getElementById("method").value);
+            let args = [];
+            argIn.childNodes.forEach(child => {
+                args.push(child.value);
+            });
+            obj.append("Args", args);
+            let res = await fetch("/Main/RunCheck", {
+                method: "POST",
+                body: obj
+            });
+            if (res.ok) {
+                let text = await res.text();
+                let ans = JSON.parse(text);
+                document.getElementById('status').innerText = "Depth of recursion: "+ ans.Answer;
+
+            }
+        }
+    </script>
+</head>
+<body>
+    <div contenteditable="true" id="code" style="border: solid black 1px; min-height: 200px; width: 50%; padding: 10px;"></div>
+    <button onclick="sendCode()">Load Code</button>
+    <select onchange="argFit()" id="method" style="display:none"></select>
+    <div id="argOut" style="display:none;">
+        <div>Put arguments value:</div>
+        <form id="argIn">
+        </form>
+    </div>
+    <button style="display:none" id="run" onclick="run()">Run Test</button>
+    <div id="status" style="min-height:50px;"></div>
+</body>
+</html>
+

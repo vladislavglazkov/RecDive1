@@ -78,7 +78,7 @@
             if (res.ok) {
                 let text = await res.text();
                 let ans = JSON.parse(text);
-                document.getElementById('status').innerText = "Depth of recursion: "+ ans.Answer;
+                document.getElementById('status').innerText = ans.Answer;
 
             }
         }

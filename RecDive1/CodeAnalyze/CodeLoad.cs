@@ -37,19 +37,22 @@ namespace RecDive1.CodeAnalyze
             return root;
         }
     }
-    internal abstract class CustomRewriter : CSharpSyntaxRewriter
+    /*internal abstract class CustomRewriter : CSharpSyntaxRewriter
     {
-        protected StatementSyntax newStatement;
+        protected SyntaxNode newStatement;
 
         public CustomRewriter(StatementSyntax newStatement)
         {
             this.newStatement = newStatement;
         }
-    }
-    internal class RewriterStart : CustomRewriter
+    }*/
+    internal class RewriterStart : CSharpSyntaxRewriter
     {
-        public RewriterStart(StatementSyntax newStatement) : base(newStatement)
+        protected StatementSyntax newStatement;
+
+        public RewriterStart(StatementSyntax newStatement) 
         {
+            this.newStatement = newStatement;
         }
 
         public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
@@ -60,17 +63,19 @@ namespace RecDive1.CodeAnalyze
                 var statements = node.Body.Statements;
                 var returnStatements = statements.OfType<ReturnStatementSyntax>().ToList();
 
-                var newStatements = (new List<StatementSyntax> { newStatement }).Concat(statements)
+                var newStatements = (new List<SyntaxNode> { newStatement }).Concat(statements)
                     .ToArray();
                 return node.WithBody(node.Body.WithStatements(SyntaxFactory.List(newStatements)));
             }
             return node;
         }
     }
-    internal class RewriterEnd : CustomRewriter
+    internal class RewriterEnd : CSharpSyntaxRewriter
     {
-        public RewriterEnd(StatementSyntax newStatement) : base(newStatement)
+        protected StatementSyntax newStatement;
+        public RewriterEnd(StatementSyntax newStatement)
         {
+            this.newStatement=  newStatement;
         }
 
         public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
@@ -83,7 +88,7 @@ namespace RecDive1.CodeAnalyze
                 var returnStatements = statements.OfType<ReturnStatementSyntax>().ToList();
 
                 var newStatements = statements
-                    .Concat(new List<StatementSyntax> { newStatement })
+                    .Concat(new List<SyntaxNode> { newStatement })
                     .ToArray();
                 return node.WithBody(node.Body.WithStatements(SyntaxFactory.List(newStatements)));
 
@@ -91,19 +96,66 @@ namespace RecDive1.CodeAnalyze
             return node;
         }
     }
-    internal class RewriterReturn : CustomRewriter
+    internal class RewriterReturn : CSharpSyntaxRewriter
     {
-        public RewriterReturn(StatementSyntax newStatement) : base(newStatement)
+        protected StatementSyntax newStatement;
+        public RewriterReturn(StatementSyntax newStatement)
         {
+            this.newStatement= newStatement;
         }
 
         public override SyntaxNode VisitReturnStatement(ReturnStatementSyntax node)
         {
             // Add new statement before return
             var newStatements = new[] { newStatement, node };
-            return SyntaxFactory.Block(newStatements);
+            return SyntaxFactory.Block((StatementSyntax[]) newStatements);
         }
 
+    }
+    internal class ConditionalReturnRewriter : CSharpSyntaxRewriter
+    {
+        protected ExpressionSyntax newStatement;
+        public ConditionalReturnRewriter(ExpressionSyntax conditionStatement) { 
+            this.newStatement= conditionStatement;
+        }
+        public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
+        {
+            var statements = node.Body.Statements;
+            var returnStatements = statements.OfType<ReturnStatementSyntax>().ToList();
+
+            var isVoid = (node.ReturnType.Kind() == SyntaxKind.PredefinedType && node.ReturnType.ToString() == "void");
+            var returnStmt = SyntaxFactory.ReturnStatement(isVoid?null:SyntaxFactory.DefaultExpression(node.ReturnType));
+            var ifStmt =  SyntaxFactory.IfStatement((ExpressionSyntax)newStatement,returnStmt);
+            var newStatements = new List<SyntaxNode> { ifStmt }
+                .Concat(statements)
+                .ToArray();
+            return node.WithBody(node.Body.WithStatements(SyntaxFactory.List(newStatements)));
+        }
+    }
+    internal class ReturnSeparateRewriter : CSharpSyntaxRewriter {
+        //public override void visit
+        private TypeSyntax GetMethodType(SyntaxNode node)
+        {
+            if (node is MethodDeclarationSyntax)
+            {
+                return ((MethodDeclarationSyntax)node).ReturnType;
+            }
+            return GetMethodType(node.Parent);
+        }
+        public override SyntaxNode VisitReturnStatement(ReturnStatementSyntax node)
+        {
+            if (node.Expression == null)
+                return node;
+            var list=new List<StatementSyntax>();
+            var type = GetMethodType(node);
+            var guid=Guid.NewGuid();
+            var varname= "__rval" + guid.ToString("N");
+            SeparatedSyntaxList<VariableDeclaratorSyntax> dlist = SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>(new VariableDeclaratorSyntax[] { SyntaxFactory.VariableDeclarator(SyntaxFactory.ParseToken(varname),null,SyntaxFactory.EqualsValueClause(node.Expression)) } );
+            list.Add(SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(type, dlist)));
+            list.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.ParseExpression(varname)));
+            var finres = SyntaxFactory.Block(list);
+            return finres;
+        }
     }
 
     internal class MethodDeclarationSyntaxWalker : CSharpSyntaxWalker
@@ -118,6 +170,7 @@ namespace RecDive1.CodeAnalyze
             }
             base.VisitMethodDeclaration(node);
         }
+        
     }
 
 
@@ -130,8 +183,8 @@ namespace RecDive1.CodeAnalyze
             var root = tree.GetCompilationUnitRoot();
             var stmt = SyntaxFactory.ParseStatement($"Metrics.Metrics.Increment(Guid.Parse(\"{guid}\"));");
             var stmt1 = SyntaxFactory.ParseStatement($"Metrics.Metrics.Decrement(Guid.Parse(\"{guid}\"));");
-           
-            var rwr = new RewriterFactory().Add(new RewriterReturn(stmt1)).Add(new RewriterEnd(stmt1)).Add(new RewriterStart(stmt));
+            var stmtCheck = SyntaxFactory.ParseExpression($"Metrics.Metrics.CheckExceeded(Guid.Parse(\"{guid}\"))");
+            var rwr = new RewriterFactory().Add(new ReturnSeparateRewriter()).Add(new RewriterReturn(stmt1)).Add(new RewriterEnd(stmt1)).Add(new ConditionalReturnRewriter(stmtCheck)).Add(new RewriterStart(stmt));
             var nroot = rwr.Apply(root);
 
             var ntree = SyntaxFactory.SyntaxTree(nroot);
@@ -180,22 +233,26 @@ namespace RecDive1.CodeAnalyze
             return $"{className}.{methodName}({parameters})";
         }
 
-        public int GetRes(string _class,string _method,object[] args)
+        public int? GetRes(string _class,string _method,object[] args)
         {
 
             Guid sessionGuid = Guid.NewGuid();
-            Metrics.Metrics.Init(sessionGuid);
+            Metrics.Metrics.Init(sessionGuid,GlobalConstraints.MaxRecursionDepth);
             var tree = ConvertTree(this.tree, sessionGuid);
-
+            
             var compileOptions = new CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary);
+           
+            List<string> requestedAssemblies = new List<string> { "System", "mscorlib", "System.Core", "System.Drawing", "Metrics" };
 
             List<MetadataReference> metaDatas = new List<MetadataReference>();
-            string path = @"C:\Users\vladi\source\repos\RecDiveSample\RecDiveSample\bin\Debug\";
-            metaDatas.Add(MetadataReference.CreateFromFile(path+"System.dll"));
-
-            metaDatas.Add(MetadataReference.CreateFromFile(path+"mscorlib.dll"));
-            metaDatas.Add(MetadataReference.CreateFromFile(path+"Metrics.dll"));
-            metaDatas.Add(MetadataReference.CreateFromFile(path+"System.Drawing.dll"));
+            var allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var h in allAssemblies)
+            {
+                if (requestedAssemblies.Contains(h.GetName().Name))
+                {
+                    metaDatas.Add(MetadataReference.CreateFromFile(h.Location));
+                }
+            }
 
 
             var compilation = CSharpCompilation.Create("assembly.dll", new List<SyntaxTree> { tree }, metaDatas, compileOptions);
@@ -207,11 +264,16 @@ namespace RecDive1.CodeAnalyze
             var ops = asm.GetType(_class);
             //var obj = Activator.CreateInstance(ops);
             var meth = ops.GetMethod(_method);
+            
             meth.Invoke(null, args);
 
-            var count = Metrics.Metrics.GetLocMax(sessionGuid);
-            Metrics.Metrics.Clear(sessionGuid);
 
+            bool exceeded = false;
+            var count = Metrics.Metrics.GetLocMax(sessionGuid);
+            exceeded = Metrics.Metrics.CheckExceeded(sessionGuid);
+            Metrics.Metrics.Clear(sessionGuid);
+            if (exceeded)
+                return null;
             return count;
         }
         

@@ -85,7 +85,9 @@ namespace RecDive1.Controllers
             }
 
             var ans=comp.GetRes(parentClass.Identifier.Text, method.Identifier.Text,args.ToArray());
-            return Json(new { Answer=ans});
+            if (ans!=null)
+                return Json(new { Answer=$"Maximum recursion depth: {ans}"});
+            return Json(new { Answer = "Recursion depth exceeded!" });
         }
         // GET: Main/Delete/5
        

@@ -164,7 +164,7 @@ namespace RecDive1.CodeAnalyze
 
         public override void VisitMethodDeclaration(MethodDeclarationSyntax node)
         {
-            if (node.Modifiers.Any(SyntaxKind.StaticKeyword))
+            if (!node.Modifiers.Any(SyntaxKind.StaticKeyword))
             {
                 Methods.Add(node);
             }
@@ -262,10 +262,10 @@ namespace RecDive1.CodeAnalyze
             Assembly asm = Assembly.Load(ms.GetBuffer());
 
             var ops = asm.GetType(_class);
-            //var obj = Activator.CreateInstance(ops);
+            var obj = Activator.CreateInstance(ops);
             var meth = ops.GetMethod(_method);
             
-            meth.Invoke(null, args);
+            meth.Invoke(obj, args);
 
 
             bool exceeded = false;

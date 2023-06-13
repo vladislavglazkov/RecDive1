@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Web;
 using System.Web.Mvc;
-
+using System.IO;
 namespace RecDive1.Controllers
 {
     public class ValidateCodeModel
@@ -54,8 +55,16 @@ namespace RecDive1.Controllers
 
         [HttpPost]
         [ValidateInput(false)]
-        public ActionResult RunCheck(RunCheckModel model)
+        public ActionResult RunCheck()
         {
+            string body;
+            using (StreamReader reader = new StreamReader(Request.InputStream))
+            {
+                body= reader.ReadToEnd();
+            }
+            RunCheckModel model=System.Text.Json.JsonSerializer.Deserialize<RunCheckModel>(body);
+
+
             var comp = RecDive1.CodeAnalyze.CodeComponent.Load(model.Code);
 
             var mds = comp.GetAllMethods();

@@ -63,17 +63,17 @@
         }
         async function run() {
             let argIn = document.getElementById('argIn');
-            let obj = new FormData();
-            obj.append("Code", globalCode);
-            obj.append("Id", document.getElementById("method").value);
-            let args = [];
+            let obj = {};
+            obj.Code = globalCode;
+            obj.Id = Number.parseInt(document.getElementById("method").value);
+            obj.Args = [];
+            
             argIn.childNodes.forEach(child => {
-                args.push(child.value);
+                obj.Args.push(child.value);
             });
-            obj.append("Args", args);
             let res = await fetch("/Main/RunCheck", {
                 method: "POST",
-                body: obj
+                body: JSON.stringify(obj)
             });
             if (res.ok) {
                 let text = await res.text();

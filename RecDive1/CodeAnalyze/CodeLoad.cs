@@ -8,6 +8,8 @@ using System.IO;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Reflection;
 using System.Runtime;
+using System.Globalization;
+
 namespace RecDive1.CodeAnalyze
 {
 
@@ -120,6 +122,8 @@ namespace RecDive1.CodeAnalyze
         }
         public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
         {
+            if (node.Body == null)
+                return node;
             var statements = node.Body.Statements;
             var returnStatements = statements.OfType<ReturnStatementSyntax>().ToList();
 
@@ -134,12 +138,28 @@ namespace RecDive1.CodeAnalyze
     }
     internal class ReturnSeparateRewriter : CSharpSyntaxRewriter {
         //public override void visit
+        SemanticModel semanticModel;
+        public ReturnSeparateRewriter(SemanticModel semanticModel)
+        {
+            this.semanticModel= semanticModel;
+        }
         private TypeSyntax GetMethodType(SyntaxNode node)
         {
-            if (node is MethodDeclarationSyntax)
+
+            var act = (ReturnStatementSyntax)node;
+            
+            var dstr=semanticModel.GetTypeInfo(act.Expression).Type.ToDisplayString();
+            return SyntaxFactory.ParseTypeName(dstr);
+            /*if (node is MethodDeclarationSyntax)
             {
                 return ((MethodDeclarationSyntax)node).ReturnType;
             }
+            else if (node is PropertyDeclarationSyntax)
+            {
+                return ((PropertyDeclarationSyntax)node).Type;
+            }*/
+
+
             return GetMethodType(node.Parent);
         }
         public override SyntaxNode VisitReturnStatement(ReturnStatementSyntax node)
@@ -178,13 +198,33 @@ namespace RecDive1.CodeAnalyze
     public class CodeComponent
     {
         private SyntaxTree tree;
+        private static List<string> requestedAssemblies = new List<string> { "System", "mscorlib", "System.Core", "System.Drawing", "Metrics" };
+
         private static SyntaxTree ConvertTree(SyntaxTree tree,Guid guid)
         {
+
+            var compileOptions = new CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary);
+
+
+            List<MetadataReference> metaDatas = new List<MetadataReference>();
+            var allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var h in allAssemblies)
+            {
+                if (requestedAssemblies.Contains(h.GetName().Name))
+                {
+                    metaDatas.Add(MetadataReference.CreateFromFile(h.Location));
+                }
+            }
+
+            var compilation = CSharpCompilation.Create("temporary.dll", new List<SyntaxTree> { tree }, metaDatas, compileOptions);
+
+
+
             var root = tree.GetCompilationUnitRoot();
             var stmt = SyntaxFactory.ParseStatement($"Metrics.Metrics.Increment(Guid.Parse(\"{guid}\"));");
             var stmt1 = SyntaxFactory.ParseStatement($"Metrics.Metrics.Decrement(Guid.Parse(\"{guid}\"));");
             var stmtCheck = SyntaxFactory.ParseExpression($"Metrics.Metrics.CheckExceeded(Guid.Parse(\"{guid}\"))");
-            var rwr = new RewriterFactory().Add(new ReturnSeparateRewriter()).Add(new RewriterReturn(stmt1)).Add(new RewriterEnd(stmt1)).Add(new ConditionalReturnRewriter(stmtCheck)).Add(new RewriterStart(stmt));
+            var rwr = new RewriterFactory().Add(new ReturnSeparateRewriter(compilation.GetSemanticModel(tree,true))).Add(new RewriterReturn(stmt1)).Add(new RewriterEnd(stmt1)).Add(new ConditionalReturnRewriter(stmtCheck)).Add(new RewriterStart(stmt));
             var nroot = rwr.Apply(root);
 
             var ntree = SyntaxFactory.SyntaxTree(nroot);
@@ -242,7 +282,6 @@ namespace RecDive1.CodeAnalyze
             
             var compileOptions = new CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary);
            
-            List<string> requestedAssemblies = new List<string> { "System", "mscorlib", "System.Core", "System.Drawing", "Metrics" };
 
             List<MetadataReference> metaDatas = new List<MetadataReference>();
             var allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
@@ -256,6 +295,7 @@ namespace RecDive1.CodeAnalyze
 
 
             var compilation = CSharpCompilation.Create("assembly.dll", new List<SyntaxTree> { tree }, metaDatas, compileOptions);
+            
             MemoryStream ms = new MemoryStream();
 
             var ress = compilation.Emit(ms);
